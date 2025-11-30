@@ -22,9 +22,17 @@ jobs:
     - name: Install dependencies
       run: pip install -r requirements.txt
 
+    # ✅ Authenticate to GCP so MLflow can download from GCS
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v1
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY2 }}
+
+    # ✅ Set environment variables for MLflow + GCS auth
     - name: Download Models
       env:
         MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+        GOOGLE_APPLICATION_CREDENTIALS: ${{ env.GOOGLE_APPLICATION_CREDENTIALS }}
       run: python download_models.py
 
     - name: Run tests
@@ -41,10 +49,11 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
+    # ✅ Authenticate for deployment + model download on VM
     - name: Authenticate to Google Cloud
       uses: google-github-actions/auth@v1
       with:
-        credentials_json: ${{ secrets.GCP_SA_KEY }}
+        credentials_json: ${{ secrets.GCP_SA_KEY2 }}
 
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v1
@@ -56,17 +65,17 @@ jobs:
         gcloud compute ssh ${{ secrets.VM_USER }}@${{ secrets.VM_NAME }} --zone=${{ secrets.GCP_ZONE }} --command="
           cd /home/${{ secrets.VM_USER }}/inference-app
           git pull
-          
+
           if [ ! -d 'venv' ]; then
             python3 -m venv venv
           fi
-          
+
           source venv/bin/activate
-          
+
           pip install -r requirements.txt
-          
+
           export MLFLOW_TRACKING_URI='${{ secrets.MLFLOW_TRACKING_URI }}'
           python download_models.py
-          
+
           sudo systemctl restart inference.service
         "
