@@ -3,13 +3,21 @@ import os
 from mlflow.tracking import MlflowClient
 import shutil
 
-def download_latest_model(model_name, destination_path):
-    mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI"))
-    client = MlflowClient()
+# Ensure stable HF cache in CI
+os.environ["HF_HOME"] = "./.hf_cache"
 
+# Set MLflow URI once globally
+mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI"))
+client = MlflowClient()
+
+def download_latest_model(model_name, destination_path):
     try:
-        # Include None stage too
-        latest_versions = client.get_latest_versions(model_name, stages=["None", "Staging", "Production"])
+        # Include all stages so CI doesn't break
+        latest_versions = client.get_latest_versions(
+            model_name,
+            stages=["None", "Staging", "Production"]
+        )
+
         if not latest_versions:
             print(f"❌ No versions found for model '{model_name}'")
             return
@@ -19,7 +27,7 @@ def download_latest_model(model_name, destination_path):
 
         local_path = mlflow.artifacts.download_artifacts(
             run_id=latest.run_id,
-            artifact_path="model",
+            artifact_path="model"
         )
 
         os.makedirs(os.path.dirname(destination_path) or ".", exist_ok=True)
@@ -27,11 +35,14 @@ def download_latest_model(model_name, destination_path):
         found = False
         for root, _, files in os.walk(local_path):
             for file in files:
+                src = os.path.join(root, file)
+
                 if model_name == "RefinerModel" and file.endswith(".pth"):
-                    shutil.copy(os.path.join(root, file), destination_path)
+                    shutil.copyfile(src, destination_path)
                     found = True
+
                 elif model_name == "LGBMModel" and (file.endswith(".txt") or file.endswith(".lgb")):
-                    shutil.copy(os.path.join(root, file), destination_path)
+                    shutil.copyfile(src, destination_path)
                     found = True
 
         if found:
@@ -44,7 +55,7 @@ def download_latest_model(model_name, destination_path):
 
 
 if __name__ == "__main__":
-    print(f"Using MLflow URI: {os.getenv('MLFLOW_TRACKING_URI')}")
+    print(f"Using MLflow URI: {mlflow.get_tracking_uri()}")
 
     download_latest_model("RefinerModel", "embedding_refiner_checkpoint.pth")
     download_latest_model("LGBMModel", "trained_lgbm_model.txt")
