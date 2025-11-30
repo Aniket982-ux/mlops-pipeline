@@ -1,4 +1,4 @@
-torch==2.5.1+cu121
+torch==2.5.1
 transformers==4.57.1
 
 numpy==2.1.2
