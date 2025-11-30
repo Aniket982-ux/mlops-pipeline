@@ -1,0 +1,15 @@
+torch
+transformers
+pandas
+tqdm
+Pillow
+scikit-learn
+lightgbm
+dvc
+numpy
+mlflow
+google-cloud-storage
+fastapi
+uvicorn
+python-multipart
+pytest

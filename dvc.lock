@@ -1,0 +1,130 @@
+schema: '2.0'
+stages:
+  text_embed:
+    cmd: python -m src.text_embeddings.embed --input dataset/train.csv --out 
+      data/text_embeddings.pkl
+    deps:
+    - path: dataset/train.csv
+      hash: md5
+      md5: 664cbe69a490fb243935dca7412210f6
+      size: 73509315
+    - path: src/text_embeddings/embed.py
+      hash: md5
+      md5: 483ab70ef09862b22579756f2f8096e5
+      size: 3853
+    outs:
+    - path: data/text_embeddings.pkl
+      hash: md5
+      md5: 0f7a7c6c28c09d796d0aec4a9c3dc362
+      size: 233704175
+    - path: metrics/text_embeddings.json
+      hash: md5
+      md5: 7c64e2f8ac2208119359636f70c6d6c5
+      size: 20
+  image_embed:
+    cmd: python -m src.image_embeddings.embed --images dataset/images --out 
+      data/image_embeddings.pkl
+    deps:
+    - path: dataset/images
+      hash: md5
+      md5: 7151c2f1a4bb5730d7132c613d130b20.dir
+      size: 18291710157
+      nfiles: 74990
+    - path: src/image_embeddings/embed.py
+      hash: md5
+      md5: 6b96fac40f413ba957401ef6f8568f71
+      size: 3342
+    outs:
+    - path: data/image_embeddings.pkl
+      hash: md5
+      md5: 48b765a1ab2353b9efab7c32e7405130
+      size: 233392566
+    - path: metrics/image_embeddings.json
+      hash: md5
+      md5: 121092fb25b67622297a9309365315ce
+      size: 20
+  merge:
+    cmd: python -m src.merging_embedding.merge --text data/text_embeddings.pkl 
+      --image data/image_embeddings.pkl --csv dataset/train.csv --out 
+      data/combined_with_price.pkl
+    deps:
+    - path: data/image_embeddings.pkl
+      hash: md5
+      md5: 48b765a1ab2353b9efab7c32e7405130
+      size: 233392566
+    - path: data/text_embeddings.pkl
+      hash: md5
+      md5: 0f7a7c6c28c09d796d0aec4a9c3dc362
+      size: 233704175
+    - path: dataset/train.csv
+      hash: md5
+      md5: 664cbe69a490fb243935dca7412210f6
+      size: 73509315
+    - path: src/merging_embedding/merge.py
+      hash: md5
+      md5: f373e857bda62f3c851b68450a85c520
+      size: 3265
+    outs:
+    - path: data/combined_with_price.pkl
+      hash: md5
+      md5: 39b3ce660ccef2a6adf2a14c48d79e1e
+      size: 464115324
+    - path: metrics/merge.json
+      hash: md5
+      md5: 121092fb25b67622297a9309365315ce
+      size: 20
+  refiner_train:
+    cmd: python -m src.refined_embed.train --in data/combined_with_price.pkl 
+      --out-model models/refiner_checkpoint.pth --out-emb data/final_refined.pkl
+      --epochs 10 --batch-size 32 --lr 1e-4
+    deps:
+    - path: data/combined_with_price.pkl
+      hash: md5
+      md5: 39b3ce660ccef2a6adf2a14c48d79e1e
+      size: 464115324
+    - path: params.yaml
+      hash: md5
+      md5: aa4983174eb8b4b84b951abb86206fe3
+      size: 135
+    - path: src/refined_embed/train.py
+      hash: md5
+      md5: 25b474b410c0d83b5879bd1c59d19470
+      size: 7975
+    outs:
+    - path: data/final_refined.pkl
+      hash: md5
+      md5: dc397e13dea24c4730f31b2f63f1757b
+      size: 463815689
+    - path: metrics/refiner_train.json
+      hash: md5
+      md5: 407d1e9e3c78a89d1ebf312ae2561bab
+      size: 244
+    - path: models/refiner_checkpoint.pth
+      hash: md5
+      md5: 945ed94c80df9e4001fca8803d402871
+      size: 63023026
+  lgbm_train:
+    cmd: python -m src.lgbm_train.train --in data/final_refined.pkl --out-model 
+      models/lgbm_model.txt --test-size 0.2 --num-boost-round 1000
+    deps:
+    - path: data/final_refined.pkl
+      hash: md5
+      md5: dc397e13dea24c4730f31b2f63f1757b
+      size: 463815689
+    - path: params.yaml
+      hash: md5
+      md5: aa4983174eb8b4b84b951abb86206fe3
+      size: 135
+    - path: src/lgbm_train/train.py
+      hash: md5
+      md5: 67a07e766847401415057e5ef72c28fd
+      size: 3847
+    outs:
+    - path: metrics/lgbm_eval.json
+      hash: md5
+      md5: 44ca1755f1e4c2b4dc332046e4ff6ab7
+      size: 29
+    - path: models/lgbm_model.txt
+      hash: md5
+      md5: c15a71cc5a0f519a2b0fd1717757fc58
+      size: 868286

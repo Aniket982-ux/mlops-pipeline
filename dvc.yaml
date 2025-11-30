@@ -1,0 +1,55 @@
+stages:
+  text_embed:
+    cmd: python -m src.text_embeddings.embed --input dataset/train.csv --out data/text_embeddings.pkl
+    deps:
+      - dataset/train.csv
+      - src/text_embeddings/embed.py
+    outs:
+      - data/text_embeddings.pkl
+    metrics:
+      - metrics/text_embeddings.json
+
+  image_embed:
+    cmd: python -m src.image_embeddings.embed --images dataset/images --out data/image_embeddings.pkl
+    deps:
+      - dataset/images
+      - src/image_embeddings/embed.py
+    outs:
+      - data/image_embeddings.pkl
+    metrics:
+      - metrics/image_embeddings.json
+
+  merge:
+    cmd: python -m src.merging_embedding.merge --text data/text_embeddings.pkl --image data/image_embeddings.pkl --csv dataset/train.csv --out data/combined_with_price.pkl
+    deps:
+      - data/text_embeddings.pkl
+      - data/image_embeddings.pkl
+      - dataset/train.csv
+      - src/merging_embedding/merge.py
+    outs:
+      - data/combined_with_price.pkl
+    metrics:
+      - metrics/merge.json
+
+  refiner_train:
+    cmd: python -m src.refined_embed.train --in data/combined_with_price.pkl --out-model models/refiner_checkpoint.pth --out-emb data/final_refined.pkl --epochs 10 --batch-size 32 --lr 1e-4
+    deps:
+      - data/combined_with_price.pkl
+      - src/refined_embed/train.py
+      - params.yaml
+    outs:
+      - models/refiner_checkpoint.pth
+      - data/final_refined.pkl
+    metrics:
+      - metrics/refiner_train.json
+
+  lgbm_train:
+    cmd: python -m src.lgbm_train.train --in data/final_refined.pkl --out-model models/lgbm_model.txt --test-size 0.2 --num-boost-round 1000
+    deps:
+      - data/final_refined.pkl
+      - src/lgbm_train/train.py
+      - params.yaml
+    outs:
+      - models/lgbm_model.txt
+    metrics:
+      - metrics/lgbm_eval.json
