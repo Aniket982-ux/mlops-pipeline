@@ -1,7 +1,6 @@
 import mlflow
 import os
 from mlflow.tracking import MlflowClient
-from pathlib import Path
 import shutil
 
 def download_latest_model(model_name, destination_path):
@@ -9,9 +8,10 @@ def download_latest_model(model_name, destination_path):
     client = MlflowClient()
 
     try:
-        latest_versions = client.get_latest_versions(model_name, stages=["Production", "Staging"])
+        # Include None stage too
+        latest_versions = client.get_latest_versions(model_name, stages=["None", "Staging", "Production"])
         if not latest_versions:
-            print(f"❌ No versions found for model '{model_name}' in Production/Staging")
+            print(f"❌ No versions found for model '{model_name}'")
             return
 
         latest = sorted(latest_versions, key=lambda x: int(x.version), reverse=True)[0]
@@ -19,8 +19,10 @@ def download_latest_model(model_name, destination_path):
 
         local_path = mlflow.artifacts.download_artifacts(
             run_id=latest.run_id,
-            artifact_path="model",  # Always correct for mlflow.log_model
+            artifact_path="model",
         )
+
+        os.makedirs(os.path.dirname(destination_path) or ".", exist_ok=True)
 
         found = False
         for root, _, files in os.walk(local_path):
@@ -35,25 +37,31 @@ def download_latest_model(model_name, destination_path):
         if found:
             print(f"✅ Saved {model_name} to {destination_path}")
         else:
-            print(f"⚠️ Could not find correct file for {model_name} in {local_path}")
+            print(f"⚠️ Could not find correct file for {model_name}")
 
     except Exception as e:
         print(f"❌ Error downloading {model_name}: {e}")
 
+
 if __name__ == "__main__":
     print(f"Using MLflow URI: {os.getenv('MLFLOW_TRACKING_URI')}")
-    
+
     download_latest_model("RefinerModel", "embedding_refiner_checkpoint.pth")
     download_latest_model("LGBMModel", "trained_lgbm_model.txt")
 
-    # Download HuggingFace models (needed for tests)
+    # Download HuggingFace models
     from transformers import AutoModel, AutoTokenizer
 
-    try:
-        AutoModel.from_pretrained('sentence-transformers/all-mpnet-base-v2')
-        AutoTokenizer.from_pretrained('sentence-transformers/all-mpnet-base-v2')
-        AutoModel.from_pretrained('google/vit-base-patch16-224-in21k')
-        AutoTokenizer.from_pretrained('google/vit-base-patch16-224-in21k')
-        print("🧠 HuggingFace models cached successfully")
-    except Exception as e:
-        print(f"⚠️ Failed to download HuggingFace models: {e}")
+    models = [
+        "sentence-transformers/all-mpnet-base-v2",
+        "google/vit-base-patch16-224-in21k"
+    ]
+
+    for model_name in models:
+        try:
+            print(f"⬇️ Downloading HuggingFace model: {model_name}")
+            AutoModel.from_pretrained(model_name)
+            AutoTokenizer.from_pretrained(model_name)
+            print(f"🧠 {model_name} cached successfully")
+        except Exception as e:
+            print(f"⚠️ Failed to download {model_name}: {e}")
