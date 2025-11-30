@@ -1,0 +1,9 @@
+refiner:
+  epochs: 10
+  batch_size: 32
+  lr: 1e-4
+
+lgbm:
+  num_boost_round: 1000
+  early_stopping_rounds: 50
+  test_size: 0.2

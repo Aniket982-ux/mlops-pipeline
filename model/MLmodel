@@ -1,0 +1,21 @@
+artifact_path: file:///C:/Users/hp/OneDrive/Desktop/pytorch-gpu-demo/mlruns/385585255318844592/models/m-4b23943cab334e76a015034cb4bbd4fa/artifacts
+flavors:
+  lightgbm:
+    code: null
+    data: model.lgb
+    lgb_version: 4.6.0
+    model_class: lightgbm.basic.Booster
+  python_function:
+    data: model.lgb
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.lightgbm
+    python_version: 3.11.9
+mlflow_version: 3.6.0
+model_id: m-4b23943cab334e76a015034cb4bbd4fa
+model_size_bytes: 289792
+model_uuid: m-4b23943cab334e76a015034cb4bbd4fa
+prompts: null
+run_id: 4fa07ed3ae0e438ebc2df0b56b76ca8f
+utc_time_created: '2025-11-22 13:40:22.431462'
