@@ -13,14 +13,12 @@ model_name = 'sentence-transformers/all-mpnet-base-v2'
 
 logging.info(f"Loading tokenizer for model: {model_name}")
 tokenizer = AutoTokenizer.from_pretrained(
-    model_name,
-    local_files_only=True   # 🔥 prevents downloading in Cloud Run
+    model_name   # 🔥 prevents downloading in Cloud Run
 )
 
 logging.info(f"Loading pretrained model: {model_name}")
 model = AutoModel.from_pretrained(
-    model_name,
-    local_files_only=True   # 🔥 forces model to load from Docker layer only
+    model_name   # 🔥 forces model to load from Docker layer only
 )
 logging.info("Model loaded successfully, moving to device...")
 
