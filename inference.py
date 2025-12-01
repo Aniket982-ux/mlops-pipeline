@@ -5,7 +5,7 @@ import mlflow.lightgbm
 import numpy as np
 import os
 
-# Define ANN + decoder classes
+# ------------------- ANN + decoder classes -------------------
 class FFN(torch.nn.Module):
     def __init__(self, input_dim, hidden_dim, dropout_rate=0.1):
         super().__init__()
@@ -71,6 +71,7 @@ LGBM_MODEL_URI = f"{MLFLOW_TRACKING_URI}/models/{LGBM_MODEL_NAME}/Production"
 _embedding_model = None
 _lgbm_model = None
 
+# ------------------- Load models -------------------
 def load_embedding_model():
     """Load the PyTorch embedding model from local file or MLflow."""
     global _embedding_model
@@ -78,9 +79,8 @@ def load_embedding_model():
         return _embedding_model
 
     if os.path.exists(EMBEDDING_MODEL_FILE):
-        _embedding_model = EmbeddingRefinerWithRegressor()
-        checkpoint = torch.load(EMBEDDING_MODEL_FILE, map_location=device)
-        _embedding_model.load_state_dict(checkpoint['model_state_dict'])
+        # Load the full model directly
+        _embedding_model = torch.load(EMBEDDING_MODEL_FILE, map_location=device)
         print(f"✅ Loaded embedding model from local file: {EMBEDDING_MODEL_FILE}")
     else:
         print("⬇️ Loading embedding model from MLflow...")
