@@ -1,10 +1,10 @@
 import torch
 import lightgbm as lgb
+import mlflow.pytorch
+import mlflow.lightgbm
 import numpy as np
-import os
 
-# Define ANN + decoder classes as before (FFN, Decoder, EmbeddingRefinerWithRegressor) or import
-
+# Define ANN + decoder classes
 class FFN(torch.nn.Module):
     def __init__(self, input_dim, hidden_dim, dropout_rate=0.1):
         super().__init__()
@@ -52,37 +52,68 @@ class EmbeddingRefinerWithRegressor(torch.nn.Module):
         price_pred = self.regressor(x)
         return price_pred.squeeze(1), x
 
-# Device setup
+# ------------------- Device setup -------------------
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Load the refined embedding model
-def load_embedding_model(path=None):
-    if path is None:
-        path = os.getenv("EMBEDDING_CHECKPOINT_PATH", "embedding_refiner_checkpoint.pth")
-    model = EmbeddingRefinerWithRegressor()
-    checkpoint = torch.load(path, map_location=device)
-    model.load_state_dict(checkpoint['model_state_dict'])
-    model.to(device)
-    model.eval()
-    return model
+# ------------------- MLflow model URIs -------------------
+MLFLOW_TRACKING_URI = "http://136.111.62.53:5000"
+EMBEDDING_MODEL_NAME = "RefinerModel"
+LGBM_MODEL_NAME = "LGBMModel"
+EMBEDDING_MODEL_URI = f"{MLFLOW_TRACKING_URI}/models/{EMBEDDING_MODEL_NAME}/Production"
+LGBM_MODEL_URI = f"{MLFLOW_TRACKING_URI}/models/{LGBM_MODEL_NAME}/Production"
 
-# Load LightGBM model
-def load_lgbm_model(path=None):
-    if path is None:
-        path = os.getenv("LGBM_MODEL_PATH", "trained_lgbm_model.txt")
-    return lgb.Booster(model_file=path)
+# ------------------- Global model cache -------------------
+_embedding_model = None
+_lgbm_model = None
 
-# Prediction function: Input combined embedding -> refined embedding -> price prediction
-def predict_price_from_embedding(combined_embedding, embedding_model, lgbm_model):
-    # Convert to tensor
-    emb_tensor = torch.tensor(combined_embedding, dtype=torch.float32).to(device)
-    emb_tensor = emb_tensor.unsqueeze(0)  # batch size 1
+def load_embedding_model():
+    """
+    Load the PyTorch embedding model from MLflow Production stage.
+    """
+    global _embedding_model
+    if _embedding_model is None:
+        _embedding_model = mlflow.pytorch.load_model(EMBEDDING_MODEL_URI, map_location=device)
+        _embedding_model.to(device)
+        _embedding_model.eval()
+    return _embedding_model
 
+def load_lgbm_model():
+    """
+    Load the LightGBM model from MLflow Production stage.
+    """
+    global _lgbm_model
+    if _lgbm_model is None:
+        _lgbm_model = mlflow.lightgbm.load_model(LGBM_MODEL_URI)
+    return _lgbm_model
+
+# ------------------- Prediction function -------------------
+def predict_price_from_embedding(combined_embedding, embedding_model=None, lgbm_model=None):
+    """
+    Predict price from embedding.
+    
+    Args:
+        combined_embedding: np.array or torch.Tensor of shape [embedding_dim]
+        embedding_model: optional, PyTorch EmbeddingRefinerWithRegressor
+        lgbm_model: optional, LightGBM Booster
+    
+    Returns:
+        price_pred: float
+    """
+    if embedding_model is None:
+        embedding_model = load_embedding_model()
+    if lgbm_model is None:
+        lgbm_model = load_lgbm_model()
+
+    # Convert to torch tensor if needed
+    if not isinstance(combined_embedding, torch.Tensor):
+        emb_tensor = torch.tensor(combined_embedding, dtype=torch.float32).unsqueeze(0).to(device)
+    else:
+        emb_tensor = combined_embedding.float().unsqueeze(0).to(device)
+
+    # Get refined embedding
     with torch.no_grad():
         _, refined_emb = embedding_model(emb_tensor)
 
     refined_emb_np = refined_emb.cpu().numpy()
-    price_pred = lgbm_model.predict(refined_emb_np)[0]
+    price_pred = lgbm_model.predict(refined_emb_np)[0]  # single example
     return price_pred
-
-
