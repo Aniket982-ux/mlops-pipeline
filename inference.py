@@ -3,6 +3,7 @@ import lightgbm as lgb
 import mlflow.pytorch
 import mlflow.lightgbm
 import numpy as np
+import os
 
 # Define ANN + decoder classes
 class FFN(torch.nn.Module):
@@ -55,7 +56,11 @@ class EmbeddingRefinerWithRegressor(torch.nn.Module):
 # ------------------- Device setup -------------------
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# ------------------- MLflow model URIs -------------------
+# ------------------- Paths for local model files -------------------
+EMBEDDING_MODEL_FILE = "./embedding_refiner_checkpoint.pth"
+LGBM_MODEL_FILE = "./trained_lgbm_model.txt"
+
+# ------------------- MLflow URIs (fallback) -------------------
 MLFLOW_TRACKING_URI = "http://136.111.62.53:5000"
 EMBEDDING_MODEL_NAME = "RefinerModel"
 LGBM_MODEL_NAME = "LGBMModel"
@@ -67,23 +72,37 @@ _embedding_model = None
 _lgbm_model = None
 
 def load_embedding_model():
-    """
-    Load the PyTorch embedding model from MLflow Production stage.
-    """
+    """Load the PyTorch embedding model from local file or MLflow."""
     global _embedding_model
-    if _embedding_model is None:
+    if _embedding_model is not None:
+        return _embedding_model
+
+    if os.path.exists(EMBEDDING_MODEL_FILE):
+        _embedding_model = EmbeddingRefinerWithRegressor()
+        checkpoint = torch.load(EMBEDDING_MODEL_FILE, map_location=device)
+        _embedding_model.load_state_dict(checkpoint['model_state_dict'])
+        print(f"✅ Loaded embedding model from local file: {EMBEDDING_MODEL_FILE}")
+    else:
+        print("⬇️ Loading embedding model from MLflow...")
         _embedding_model = mlflow.pytorch.load_model(EMBEDDING_MODEL_URI, map_location=device)
-        _embedding_model.to(device)
-        _embedding_model.eval()
+
+    _embedding_model.to(device)
+    _embedding_model.eval()
     return _embedding_model
 
 def load_lgbm_model():
-    """
-    Load the LightGBM model from MLflow Production stage.
-    """
+    """Load the LightGBM model from local file or MLflow."""
     global _lgbm_model
-    if _lgbm_model is None:
+    if _lgbm_model is not None:
+        return _lgbm_model
+
+    if os.path.exists(LGBM_MODEL_FILE):
+        _lgbm_model = lgb.Booster(model_file=LGBM_MODEL_FILE)
+        print(f"✅ Loaded LGBM model from local file: {LGBM_MODEL_FILE}")
+    else:
+        print("⬇️ Loading LGBM model from MLflow...")
         _lgbm_model = mlflow.lightgbm.load_model(LGBM_MODEL_URI)
+
     return _lgbm_model
 
 # ------------------- Prediction function -------------------
