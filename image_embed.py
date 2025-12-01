@@ -15,14 +15,12 @@ model_name = 'google/vit-base-patch16-224-in21k'
 
 logging.info(f"Loading feature extractor for model: {model_name}")
 feature_extractor = ViTFeatureExtractor.from_pretrained(
-    model_name,
-    local_files_only=True   # 🔥 prevents Cloud Run downloading
+    model_name   # 🔥 prevents Cloud Run downloading
 )
 
 logging.info(f"Loading pretrained ViT model: {model_name}")
 model = ViTModel.from_pretrained(
-    model_name,
-    local_files_only=True   # 🔥 ensures weight files must exist in Docker image
+    model_name # 🔥 ensures weight files must exist in Docker image
 )
 
 logging.info("ViT model loaded successfully, moving to device...")
