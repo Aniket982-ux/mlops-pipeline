@@ -41,7 +41,8 @@ def download_latest_model(model_name, destination_path):
                     shutil.copyfile(src, destination_path)
                     found = True
 
-                elif model_name == "LGBMModel" and (file.endswith(".txt") or file.endswith(".lgb")):
+                # Only copy the actual LightGBM model (.lgb)
+                elif model_name == "LGBMModel" and file.endswith(".lgb"):
                     shutil.copyfile(src, destination_path)
                     found = True
 
@@ -103,7 +104,7 @@ if __name__ == "__main__":
 
     # MLflow models
     download_latest_model("RefinerModel", "embedding_refiner_checkpoint.pth")
-    download_latest_model("LGBMModel", "trained_lgbm_model.txt")
+    download_latest_model("LGBMModel", "trained_lgbm_model.lgb")  # <-- updated to .lgb
 
     # HuggingFace models
     for model_name in HF_MODELS:
