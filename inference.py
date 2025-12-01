@@ -58,9 +58,9 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # ------------------- Paths for local model files -------------------
 EMBEDDING_MODEL_FILE = "./embedding_refiner_checkpoint.pth"
-LGBM_MODEL_FILE = "./trained_lgbm_model.txt"
+LGBM_MODEL_FILE = "./trained_lgbm_model.lgb"  # <-- correct .lgb file
 
-# ------------------- MLflow URIs (fallback) -------------------
+# ------------------- MLflow URIs -------------------
 MLFLOW_TRACKING_URI = "http://136.111.62.53:5000"
 EMBEDDING_MODEL_NAME = "RefinerModel"
 LGBM_MODEL_NAME = "LGBMModel"
@@ -73,13 +73,11 @@ _lgbm_model = None
 
 # ------------------- Load models -------------------
 def load_embedding_model():
-    """Load the PyTorch embedding model from local file or MLflow."""
     global _embedding_model
     if _embedding_model is not None:
         return _embedding_model
 
     if os.path.exists(EMBEDDING_MODEL_FILE):
-        # Load the full model directly
         _embedding_model = torch.load(EMBEDDING_MODEL_FILE, map_location=device)
         print(f"✅ Loaded embedding model from local file: {EMBEDDING_MODEL_FILE}")
     else:
@@ -91,7 +89,6 @@ def load_embedding_model():
     return _embedding_model
 
 def load_lgbm_model():
-    """Load the LightGBM model from local file or MLflow."""
     global _lgbm_model
     if _lgbm_model is not None:
         return _lgbm_model
@@ -109,12 +106,12 @@ def load_lgbm_model():
 def predict_price_from_embedding(combined_embedding, embedding_model=None, lgbm_model=None):
     """
     Predict price from embedding.
-    
+
     Args:
         combined_embedding: np.array or torch.Tensor of shape [embedding_dim]
         embedding_model: optional, PyTorch EmbeddingRefinerWithRegressor
         lgbm_model: optional, LightGBM Booster
-    
+
     Returns:
         price_pred: float
     """
